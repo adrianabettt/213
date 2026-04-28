@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sequência de Movimentos</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: Arial, sans-serif;
+  background: #fff9c4;
+  min-height: 100vh;
+  padding: 10px 10px 24px;
+}
+
+.topo { text-align: center; padding: 12px 8px 8px; }
+.topo h1 {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(22px, 5vw, 36px);
+  color: #1976d2;
+  text-shadow: 2px 2px 0 #90caf9;
+}
+.topo .sub { font-size: 12px; color: #888; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
+
+/* FOLHA */
+.folha {
+  background: white;
+  border: 6px solid #ffb300;
+  border-radius: 28px;
+  max-width: 860px;
+  margin: 10px auto 14px;
+  padding: 18px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+}
+
+/* ── PALCO ── */
+.palco-wrap { margin-bottom: 14px; }
+.palco-label {
+  font-size: 11px; font-weight: 700; color: #555;
+  text-transform: uppercase; letter-spacing: 1px;
+  text-align: center; margin-bottom: 6px;
+}
+
+.palco {
+  width: 100%;
+  height: 160px;
+  border-radius: 16px;
+  border: 3px solid #1976d2;
+  position: relative;
+  overflow: hidden;
+  /* céu degradê + grama */
+  background: linear-gradient(to bottom, #87CEEB 68%, #5cb85c 68%, #4a9e4a 100%);
+}
+
+/* nuvens decorativas */
+.nuvem {
+  position: absolute;
+  font-size: 28px;
+  opacity: .55;
+  top: 10px;
+  pointer-events: none;
+}
+
+/* chão visual */
+.chao {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 50px;
+  /* grama com pontinhos */
+  background: repeating-linear-gradient(
+    90deg,
+    #4a9e4a 0px, #4a9e4a 8px,
+    #5cb85c 8px, #5cb85c 16px
+  );
+  border-top: 3px solid #3d8b3d;
+}
+
+/* PERSONAGEM */
+#personagem {
+  position: absolute;
+  bottom: 50px;   /* fica em cima do chão */
+  font-size: 48px;
+  line-height: 1;
+  /* transição suave para x e bottom */
+  transition: left 0.4s ease, bottom 0.25s ease, transform 0.1s;
+  transform-origin: center bottom;
+  user-select: none;
+}
+
+/* animação de pulo */
+@keyframes pulo {
+  0%   { bottom: 50px; }
+  35%  { bottom: 105px; }
+  65%  { bottom: 105px; }
+  100% { bottom: 50px; }
+}
+#personagem.pulando { animation: pulo 0.6s ease; }
+
+/* animação passo */
+@keyframes passo {
+  0%,100% { transform: scaleY(1) rotate(0deg); }
+  25%      { transform: scaleY(.92) rotate(-3deg); }
+  75%      { transform: scaleY(.92) rotate(3deg); }
+}
+#personagem.andando { animation: passo 0.35s ease; }
+
+/* estrelinhas ao acertar */
+#estrelinhas {
+  position: absolute;
+  top: 10px; right: 14px;
+  font-size: 22px;
+  opacity: 0;
+  transition: opacity .3s;
+  pointer-events: none;
+}
+#estrelinhas.show { opacity: 1; }
+
+/* ── LAYOUT PRINCIPAL ── */
+.jogo-layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+/* PALETA */
+.col-paleta {
+  flex: 0 0 160px;
+}
+.painel-titulo {
+  font-size: 11px; font-weight: 700; color: #1976d2;
+  text-transform: uppercase; letter-spacing: 1px;
+  text-align: center; margin-bottom: 8px;
+}
+.paleta-box {
+  background: #e3f2fd;
+  border: 2px solid #1976d2;
+  border-radius: 14px;
+  padding: 10px;
+}
+.bloco {
+  padding: 10px 8px;
+  margin: 5px 0;
+  border-radius: 10px;
+  color: white;
+  font-weight: 700;
+  font-size: 12px;
+  text-align: center;
+  cursor: grab;
+  user-select: none;
+  transition: transform .1s, box-shadow .1s;
+  border: none;
+  width: 100%;
+}
+.bloco:active { cursor: grabbing; transform: scale(.96); }
+.bloco.mov    { background: #1976d2; box-shadow: 0 4px 0 #0d47a1; }
+.bloco.rep    { background: #f57c00; box-shadow: 0 4px 0 #e65100; }
+.bloco:hover  { filter: brightness(1.1); }
+
+/* ALGORITMO */
+.col-algo { flex: 1; min-width: 0; }
+.algo-box {
+  background: #f9f9f9;
+  border: 2.5px dashed #1976d2;
+  border-radius: 14px;
+  padding: 10px;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.algo-box .placeholder {
+  color: #bbb;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  margin: auto;
+  pointer-events: none;
+  text-transform: uppercase;
+}
+
+/* bloco no algoritmo */
+.bloco-algo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-radius: 10px;
+  color: white;
+  font-weight: 700;
+  font-size: 12px;
+  animation: dropIn .2s ease;
+  cursor: default;
+}
+@keyframes dropIn {
+  from { transform: translateY(-8px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.bloco-algo.mov { background: #1976d2; }
+.bloco-algo.rep { background: #f57c00; }
+.bloco-algo.ativo { outline: 3px solid #ffeb3b; outline-offset: 2px; }
+
+/* SELECT de repetição inline */
+.bloco-algo.rep select {
+  background: white;
+  border: 2px solid #fff;
+  border-radius: 6px;
+  color: #f57c00;
+  font-weight: 700;
+  padding: 2px 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* botão remover dentro do bloco */
+.bloco-algo .remover {
+  background: rgba(255,255,255,.25);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+  font-weight: 900;
+}
+.bloco-algo .remover:hover { background: rgba(255,255,255,.45); }
+
+/* BOTÕES */
+.btns { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; justify-content: center; }
+.btn-exec {
+  background: #4caf50; color: white; border: none; border-radius: 50px;
+  padding: 12px 28px; font-family: 'Fredoka One', cursive; font-size: 17px;
+  cursor: pointer; box-shadow: 0 5px 0 #2e7d32; transition: .1s; flex: 1; min-width: 120px;
+}
+.btn-exec:active { transform: translateY(4px); box-shadow: none; }
+.btn-exec:disabled { background: #aaa; box-shadow: 0 5px 0 #777; cursor: not-allowed; }
+.btn-limpar {
+  background: #e53935; color: white; border: none; border-radius: 50px;
+  padding: 12px 22px; font-family: 'Fredoka One', cursive; font-size: 17px;
+  cursor: pointer; box-shadow: 0 5px 0 #b71c1c; transition: .1s; flex: 1; min-width: 100px;
+}
+.btn-limpar:active { transform: translateY(4px); box-shadow: none; }
+
+/* FEEDBACK */
+.feedback-bar {
+  text-align: center;
+  font-family: 'Fredoka One', cursive;
+  font-size: 17px;
+  min-height: 28px;
+  margin-top: 12px;
+}
+.feedback-bar.ok  { color: #4caf50; }
+.feedback-bar.nao { color: #e53935; }
+
+/* MODAL NOTA 10 */
+.modal-overlay {
+  display: none;
+  position: fixed; z-index: 200;
+  inset: 0;
+  background: rgba(0,0,0,.65);
+  backdrop-filter: blur(3px);
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal-box {
+  background: white;
+  border: 6px solid #ffb300;
+  border-radius: 28px;
+  padding: 32px 28px;
+  text-align: center;
+  max-width: 340px;
+  width: 90%;
+  animation: popUp .35s cubic-bezier(.175,.885,.32,1.275);
+}
+@keyframes popUp { from{transform:scale(.5);opacity:0} to{transform:scale(1);opacity:1} }
+.modal-titulo {
+  font-family: 'Fredoka One', cursive;
+  font-size: 26px; color: #f57c00; margin-bottom: 4px;
+}
+.modal-emoji { font-size: 52px; margin: 6px 0; }
+.modal-nota {
+  font-family: 'Fredoka One', cursive;
+  font-size: 100px; line-height: 1;
+  color: #4caf50; margin: 4px 0 2px;
+  text-shadow: 3px 3px 0 #2e7d32;
+}
+.modal-de {
+  font-size: 12px; font-weight: 700; color: #bbb;
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
+}
+.modal-msg {
+  font-family: 'Fredoka One', cursive;
+  font-size: 16px; color: #555; margin-bottom: 20px; line-height: 1.4;
+}
+.modal-btn {
+  background: #ffb300; color: #333; border: none;
+  border-radius: 50px; padding: 12px 32px;
+  font-family: 'Fredoka One', cursive; font-size: 18px;
+  cursor: pointer; box-shadow: 0 5px 0 #e65100;
+  transition: .1s;
+}
+.modal-btn:active { transform: translateY(4px); box-shadow: none; }
+
+footer {
+  text-align: center; font-size: 10px; color: #bbb;
+  padding: 16px 0 8px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+
+/* Responsivo */
+@media (max-width: 500px) {
+  .jogo-layout { flex-direction: column; }
+  .col-paleta { flex: none; width: 100%; }
+  .paleta-box { display: flex; flex-wrap: wrap; gap: 6px; }
+  .paleta-box .bloco { width: auto; flex: 1; }
+}
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <h1>🚶 SEQUÊNCIA DE MOVIMENTOS</h1>
+  <div class="sub">Monte o algoritmo e veja o personagem se mover de verdade!</div>
+</div>
+
+<div class="folha">
+
+  <!-- PALCO -->
+  <div class="palco-wrap">
+    <div class="palco-label">🎬 PALCO — VEJA O PERSONAGEM SE MOVER!</div>
+    <div class="palco" id="palco">
+      <span class="nuvem" style="left:8%">☁️</span>
+      <span class="nuvem" style="left:40%">☁️</span>
+      <span class="nuvem" style="left:72%">☁️</span>
+      <div class="chao"></div>
+      <div id="personagem">🧒</div>
+      <div id="estrelinhas">⭐⭐⭐</div>
+    </div>
+  </div>
+
+  <!-- LAYOUT PRINCIPAL -->
+  <div class="jogo-layout">
+
+    <!-- PALETA DE COMANDOS -->
+    <div class="col-paleta">
+      <div class="painel-titulo">🧩 COMANDOS</div>
+      <div class="paleta-box" id="paleta">
+        <button class="bloco mov" draggable="true" data-acao="direita"  data-texto="➡️ DIREITA"  onclick="adicionarBloco('direita','➡️ DIREITA','mov')">➡️ DIREITA</button>
+        <button class="bloco mov" draggable="true" data-acao="esquerda" data-texto="⬅️ ESQUERDA" onclick="adicionarBloco('esquerda','⬅️ ESQUERDA','mov')">⬅️ ESQUERDA</button>
+        <button class="bloco mov" draggable="true" data-acao="pular"    data-texto="⬆️ PULAR"    onclick="adicionarBloco('pular','⬆️ PULAR','mov')">⬆️ PULAR</button>
+        <button class="bloco rep" draggable="true" data-acao="repetir"  data-texto="🔁 REPETIR"  onclick="adicionarBloco('repetir','🔁 REPETIR','rep')">🔁 REPETIR</button>
+      </div>
+    </div>
+
+    <!-- ÁREA DO ALGORITMO -->
+    <div class="col-algo">
+      <div class="painel-titulo">📋 MEU ALGORITMO — CLIQUE OU ARRASTE OS COMANDOS!</div>
+      <div class="algo-box" id="area-algoritmo">
+        <span class="placeholder" id="placeholder">Clique nos comandos para adicionar aqui...</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTÕES -->
+  <div class="btns">
+    <button class="btn-exec" id="btn-exec" onclick="executar()">▶ EXECUTAR</button>
+    <button class="btn-limpar" onclick="limpar()">🗑 APAGAR TUDO</button>
+  </div>
+
+  <div class="feedback-bar" id="feedback"></div>
+
+</div>
+
+<footer>MATERIAL PEDAGÓGICO · PROFª ADRIANA BETT TEREBINTO · SÃO LOURENÇO DO OESTE/SC · 2026</footer>
+
+<!-- MODAL NOTA -->
+<div class="modal-overlay" id="modal-nota-overlay">
+  <div class="modal-box">
+    <div class="modal-titulo" id="modal-titulo">🏆 PARABÉNS!</div>
+    <div class="modal-emoji" id="modal-emoji">🎉</div>
+    <div class="modal-nota" id="modal-nota">10</div>
+    <div class="modal-de">de 10,0 pontos</div>
+    <div class="modal-msg" id="modal-msg"></div>
+    <button class="modal-btn" onclick="fecharModal()">🔄 TENTAR DE NOVO!</button>
+  </div>
+</div>
+
+<script>
+// ─── Estado ───
+var blocos = [];           // [{acao, texto, tipo, reps}]
+var personagem = document.getElementById('personagem');
+var palco = document.getElementById('palco');
+
+// posição em px (calculada dinamicamente)
+var posX = 0;   // px desde a borda esquerda
+var DIR = 1;    // 1=direita, -1=esquerda
+
+var rodando = false;
+
+// ─── Largura de um passo: 10% do palco ───
+function larguraPasso(){ return palco.offsetWidth * 0.1; }
+
+// ─── Posiciona o personagem sem animação (init) ───
+function resetPersonagem(){
+  posX = palco.offsetWidth / 2 - 24;
+  DIR = 1;
+  personagem.style.transition = 'none';
+  personagem.style.left = posX + 'px';
+  personagem.style.transform = 'scaleX(1)';
+  personagem.style.bottom = '50px';
+  personagem.classList.remove('pulando','andando');
+  // reativa transição no próximo frame
+  requestAnimationFrame(function(){
+    personagem.style.transition = 'left 0.35s ease, bottom 0.25s ease';
+  });
+}
+
+// ─── Adicionar bloco ao algoritmo ───
+function adicionarBloco(acao, texto, tipo){
+  blocos.push({ acao: acao, texto: texto, tipo: tipo, reps: 2 });
+  renderAlgoritmo();
+}
+
+function renderAlgoritmo(){
+  var area = document.getElementById('area-algoritmo');
+  area.innerHTML = '';
+  if(blocos.length === 0){
+    var ph = document.createElement('span');
+    ph.className = 'placeholder';
+    ph.id = 'placeholder';
+    ph.textContent = 'Clique nos comandos para adicionar aqui...';
+    area.appendChild(ph);
+    return;
+  }
+  blocos.forEach(function(b, idx){
+    var div = document.createElement('div');
+    div.className = 'bloco-algo ' + b.tipo;
+    div.id = 'bloco-' + idx;
+
+    var span = document.createElement('span');
+    span.textContent = b.texto;
+    div.appendChild(span);
+
+    // se for REPETIR, mostra select de quantidade
+    if(b.acao === 'repetir'){
+      var label = document.createElement('span');
+      label.textContent = ' × ';
+      label.style.margin = '0 4px';
+      div.appendChild(label);
+
+      var sel = document.createElement('select');
+      [2,3,4,5].forEach(function(n){
+        var opt = document.createElement('option');
+        opt.value = n; opt.textContent = n + 'x';
+        if(n === b.reps) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.onchange = (function(i){ return function(){ blocos[i].reps = parseInt(this.value); }; })(idx);
+      div.appendChild(sel);
+    }
+
+    var btn = document.createElement('button');
+    btn.className = 'remover';
+    btn.textContent = '✕';
+    btn.title = 'Remover';
+    btn.onclick = (function(i){ return function(){ blocos.splice(i,1); renderAlgoritmo(); }; })(idx);
+    div.appendChild(btn);
+
+    area.appendChild(div);
+  });
+}
+
+// ─── DRAG & DROP da paleta para o algoritmo ───
+document.querySelectorAll('.bloco[draggable]').forEach(function(el){
+  el.addEventListener('dragstart', function(e){
+    e.dataTransfer.setData('acao',  el.dataset.acao);
+    e.dataTransfer.setData('texto', el.dataset.texto);
+    e.dataTransfer.setData('tipo',  el.classList.contains('rep') ? 'rep' : 'mov');
+  });
+});
+
+var area = document.getElementById('area-algoritmo');
+area.addEventListener('dragover', function(e){ e.preventDefault(); });
+area.addEventListener('drop', function(e){
+  var acao  = e.dataTransfer.getData('acao');
+  var texto = e.dataTransfer.getData('texto');
+  var tipo  = e.dataTransfer.getData('tipo');
+  if(acao) adicionarBloco(acao, texto, tipo);
+});
+
+// ─── Helpers de animação ───
+function delay(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+function moverDireita(){
+  return new Promise(function(resolve){
+    DIR = 1;
+    personagem.style.transform = 'scaleX(1)';
+    var passo = larguraPasso();
+    posX = Math.min(posX + passo, palco.offsetWidth - 56);
+    personagem.style.left = posX + 'px';
+    personagem.classList.remove('andando');
+    void personagem.offsetWidth; // reflow
+    personagem.classList.add('andando');
+    setTimeout(function(){
+      personagem.classList.remove('andando');
+      resolve();
+    }, 420);
+  });
+}
+
+function moverEsquerda(){
+  return new Promise(function(resolve){
+    DIR = -1;
+    personagem.style.transform = 'scaleX(-1)';
+    var passo = larguraPasso();
+    posX = Math.max(posX - passo, 4);
+    personagem.style.left = posX + 'px';
+    personagem.classList.remove('andando');
+    void personagem.offsetWidth;
+    personagem.classList.add('andando');
+    setTimeout(function(){
+      personagem.classList.remove('andando');
+      resolve();
+    }, 420);
+  });
+}
+
+function pular(){
+  return new Promise(function(resolve){
+    personagem.classList.remove('pulando');
+    void personagem.offsetWidth;
+    personagem.classList.add('pulando');
+    setTimeout(function(){
+      personagem.classList.remove('pulando');
+      resolve();
+    }, 650);
+  });
+}
+
+async function executarAcao(acao){
+  if(acao === 'direita')       await moverDireita();
+  else if(acao === 'esquerda') await moverEsquerda();
+  else if(acao === 'pular')    await pular();
+  await delay(80);
+}
+
+// ─── EXECUTAR ───
+async function executar(){
+  if(rodando) return;
+  if(blocos.length === 0){
+    setFeedback('⚠️ Adicione pelo menos um comando!', 'nao');
+    return;
+  }
+  rodando = true;
+  document.getElementById('btn-exec').disabled = true;
+  document.getElementById('feedback').className = 'feedback-bar';
+  document.getElementById('feedback').textContent = '';
+  resetPersonagem();
+  await delay(300);
+
+  // expande blocos REPETIR em sequência real de ações
+  var sequencia = [];
+  for(var i = 0; i < blocos.length; i++){
+    var b = blocos[i];
+    if(b.acao === 'repetir'){
+      // repete o bloco anterior b.reps vezes
+      if(i > 0 && blocos[i-1].acao !== 'repetir'){
+        for(var r = 1; r < b.reps; r++){   // -1 pq o bloco anterior já foi executado 1x
+          sequencia.push(blocos[i-1].acao);
+        }
+      }
+    } else {
+      sequencia.push(b.acao);
+    }
+  }
+
+  // executa e ilumina blocos
+  var bIdx = 0;  // índice no array blocos para destacar
+  var blocoEls = document.querySelectorAll('.bloco-algo');
+
+  // executa bloco a bloco (com repetição inline)
+  for(var i = 0; i < blocos.length; i++){
+    var b = blocos[i];
+    var el = document.getElementById('bloco-' + i);
+    if(el) el.classList.add('ativo');
+
+    if(b.acao === 'repetir'){
+      // repete a ação anterior
+      if(i > 0 && blocos[i-1].acao !== 'repetir'){
+        var acaoRep = blocos[i-1].acao;
+        for(var r = 1; r < b.reps; r++){
+          await executarAcao(acaoRep);
+        }
+      }
+    } else {
+      await executarAcao(b.acao);
+    }
+
+    if(el) el.classList.remove('ativo');
+  }
+
+  // verifica se usou REPETIR
+  var usouRepetir = blocos.some(function(b){ return b.acao === 'repetir'; });
+
+  // fim
+  document.getElementById('estrelinhas').classList.add('show');
+  setTimeout(function(){ document.getElementById('estrelinhas').classList.remove('show'); }, 1400);
+  setFeedback('🎉 ALGORITMO EXECUTADO COM SUCESSO!', 'ok');
+  rodando = false;
+  document.getElementById('btn-exec').disabled = false;
+
+  // abre modal com nota correta
+  setTimeout(function(){ abrirModalNota(usouRepetir); }, 1600);
+}
+
+function setFeedback(msg, tipo){
+  var fb = document.getElementById('feedback');
+  fb.textContent = msg;
+  fb.className = 'feedback-bar ' + (tipo||'');
+}
+
+function abrirModalNota(usouRepetir){
+  var nota    = usouRepetir ? '10' : '7,0';
+  var cor     = usouRepetir ? '#4caf50' : '#ffb300';
+  var sombra  = usouRepetir ? '#2e7d32' : '#e65100';
+  var titulo  = usouRepetir ? '🏆 PARABÉNS!' : '👏 MUITO BOM!';
+  var emoji   = usouRepetir ? '🎉' : '😊';
+  var msg     = usouRepetir
+    ? 'Você usou REPETIÇÃO no seu algoritmo!\nIsso é programar de verdade! 🚀'
+    : 'Seu algoritmo funcionou!\nPara ganhar nota 10, use o bloco 🔁 REPETIR!';
+
+  document.getElementById('modal-titulo').textContent = titulo;
+  document.getElementById('modal-emoji').textContent  = emoji;
+  document.getElementById('modal-nota').textContent   = nota;
+  document.getElementById('modal-nota').style.color   = cor;
+  document.getElementById('modal-nota').style.textShadow = '3px 3px 0 ' + sombra;
+  document.getElementById('modal-msg').textContent    = msg;
+  document.getElementById('modal-nota-overlay').classList.add('show');
+}
+
+function fecharModal(){
+  document.getElementById('modal-nota-overlay').classList.remove('show');
+  limpar();
+}
+
+// ─── LIMPAR ───
+function limpar(){
+  if(rodando) return;
+  blocos = [];
+  renderAlgoritmo();
+  resetPersonagem();
+  document.getElementById('feedback').className = 'feedback-bar';
+  document.getElementById('feedback').textContent = '';
+}
+
+// ─── INIT ───
+window.addEventListener('load', function(){
+  resetPersonagem();
+});
+window.addEventListener('resize', function(){
+  if(!rodando) resetPersonagem();
+});
+</script>
+</body>
+</html>
